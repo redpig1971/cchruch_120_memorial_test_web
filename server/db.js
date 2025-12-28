@@ -85,8 +85,12 @@ const initDB = async () => {
         // Check Admin
         const adminRes = await client.query("SELECT * FROM users WHERE username = $1", ['admin']);
         if (adminRes.rows.length === 0) {
-            await client.query("INSERT INTO users (username, password) VALUES ($1, $2)", ['admin', 'admin']);
-            console.log('Default admin user created (admin/admin)');
+            await client.query("INSERT INTO users (username, password, deceased_name) VALUES ($1, $2, $3)", ['admin', 'admin', '고인1']);
+            console.log('Default admin user created (admin/admin/고인1)');
+        } else {
+            // Force update deceased_name for existing admin as per user request
+            await client.query("UPDATE users SET deceased_name = $1 WHERE username = $2", ['고인1', 'admin']);
+            console.log('Admin user updated with default deceased_name (고인1)');
         }
 
         // Photos Table
