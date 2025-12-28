@@ -106,7 +106,7 @@ app.post('/api/guestbook', (req, res) => {
     return res.status(400).json({ message: 'All fields are required' });
   }
 
-  const query = `INSERT INTO guestbook (deceased_name, author, title, content) VALUES (?, ?, ?, ?)`;
+  const query = `INSERT INTO guestbook (deceased_name, author, title, content) VALUES (?, ?, ?, ?) RETURNING id`;
   db.run(query, [deceasedName, author, title, content], function (err) {
     if (err) return res.status(500).json({ message: 'Database error' });
     res.json({ message: 'Post created', id: this.lastID });
@@ -158,7 +158,7 @@ app.post('/api/photos', upload.single('photo'), (req, res) => {
       if (err) console.error("Error clearing slot:", err);
     });
 
-    const insert = 'INSERT INTO photos (user_id, filename, slot_number) VALUES (?, ?, ?)';
+    const insert = 'INSERT INTO photos (user_id, filename, slot_number) VALUES (?, ?, ?) RETURNING id';
     db.run(insert, [userId, filename, slotNumInt], function (err) {
       if (err) {
         console.error(err.message);

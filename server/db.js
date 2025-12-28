@@ -1,88 +1,139 @@
-const sqlite3 = require('sqlite3').verbose();
-const path = require('path');
+const { Pool } = require('pg');
 
-// Connect to SQLite database
-// Will create users.db if it doesn't exist
-const dbPath = path.resolve(__dirname, 'users.db');
-const db = new sqlite3.Database(dbPath, (err) => {
-    if (err) {
-        console.error('Error opening database ' + dbPath + ': ' + err.message);
-    } else {
-        console.log('Connected to the SQLite database.');
+// Create a new pool using the connection string from environment variables
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+        rejectUnauthorized: false
     }
 });
 
-// Initialize table and seed data
-db.serialize(() => {
-    db.run(`CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE,
-    password TEXT,
-    deceased_name TEXT
-  )`, (err) => {
-        if (err) {
-            console.error('Error creating table:', err.message);
-        } else {
-            // Check if admin user exists, if not create one
-            db.get("SELECT * FROM users WHERE username = ?", ['admin'], (err, row) => {
-                if (err) {
-                    console.error(err.message);
-                }
-                if (!row) {
-                    // Insert default user
-                    // WARNING: Storing password in plain text as explicitly requested by user.
-                    const insert = 'INSERT INTO users (username, password) VALUES (?,?)';
-                    db.run(insert, ['admin', 'admin'], (err) => {
-                        if (err) {
-                            return console.error(err.message);
-                        }
-                        console.log('Default admin user created (admin/admin)');
-                    });
-                }
-            });
-        }
-    });
+// Helper function to convert SQLite style '?' placeholders to Postgres '$n'
+const convertQuery = (sql) => {
+    let i = 1;
+    return sql.replace(/\?/g, () => `$${i++}`);
+};
 
-    // Create photos table
-    db.run(`CREATE TABLE IF NOT EXISTS photos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        filename TEXT,
-        slot_number INTEGER,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY(user_id) REFERENCES users(id),
-        UNIQUE(user_id, slot_number)
-    )`, (err) => {
-        if (err) {
-            console.error('Error creating photos table:', err.message);
+const db = {
+    // Wrapper for db.run (Execute query)
+    run: (sql, params, callback) => {
+        // If params is callback, shift arguments
+        if (typeof params === 'function') {
+            callback = params;
+            params = [];
         }
-    });
 
-    // Create deceased_list table
-    db.run(`CREATE TABLE IF NOT EXISTS deceased_list(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT UNIQUE,
-        location TEXT,
-        image_url TEXT
-    )`, (err) => {
-        if (err) {
-            console.error('Error creating deceased_list table:', err.message);
-        }
-    });
+        const pgSql = convertQuery(sql);
 
-    // Create guestbook table
-    db.run(`CREATE TABLE IF NOT EXISTS guestbook (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        deceased_name TEXT,
-        author TEXT,
-        title TEXT,
-        content TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`, (err) => {
-        if (err) {
-            console.error('Error creating guestbook table:', err.message);
+        pool.query(pgSql, params, (err, res) => {
+            if (callback) {
+                // If RETURNING id is used, use it as lastID
+                const lastID = (res && res.rows && res.rows.length > 0) ? res.rows[0].id : 0;
+                callback.call({ lastID: lastID }, err);
+            }
+        });
+    },
+
+    // Wrapper for db.get (Get single row)
+    get: (sql, params, callback) => {
+        if (typeof params === 'function') {
+            callback = params;
+            params = [];
         }
-    });
-});
+        const pgSql = convertQuery(sql);
+        pool.query(pgSql, params, (err, res) => {
+            if (err) return callback(err);
+            callback(null, res.rows[0]);
+        });
+    },
+
+    // Wrapper for db.all (Get all rows)
+    all: (sql, params, callback) => {
+        if (typeof params === 'function') {
+            callback = params;
+            params = [];
+        }
+        const pgSql = convertQuery(sql);
+        pool.query(pgSql, params, (err, res) => {
+            if (err) return callback(err);
+            callback(null, res.rows);
+        });
+    },
+
+    // No-op for serialize as PG pool handles concurrency
+    serialize: (callback) => {
+        callback();
+    }
+};
+
+// Initialize Tables
+const initDB = async () => {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // Users Table
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                username VARCHAR(255) UNIQUE,
+                password VARCHAR(255),
+                deceased_name VARCHAR(255)
+            );
+        `);
+
+        // Check Admin
+        const adminRes = await client.query("SELECT * FROM users WHERE username = $1", ['admin']);
+        if (adminRes.rows.length === 0) {
+            await client.query("INSERT INTO users (username, password) VALUES ($1, $2)", ['admin', 'admin']);
+            console.log('Default admin user created (admin/admin)');
+        }
+
+        // Photos Table
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS photos (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER,
+                filename VARCHAR(255),
+                slot_number INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(user_id) REFERENCES users(id),
+                UNIQUE(user_id, slot_number)
+            );
+        `);
+
+        // Deceased List Table
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS deceased_list(
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(255) UNIQUE,
+                location VARCHAR(255),
+                image_url VARCHAR(255)
+            );
+        `);
+
+        // Guestbook Table
+        await client.query(`
+             CREATE TABLE IF NOT EXISTS guestbook (
+                id SERIAL PRIMARY KEY,
+                deceased_name VARCHAR(255),
+                author VARCHAR(255),
+                title VARCHAR(255),
+                content TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        await client.query('COMMIT');
+        console.log("PostgreSQL Tables Initialized");
+    } catch (e) {
+        await client.query('ROLLBACK');
+        console.error("Error initializing tables", e);
+    } finally {
+        client.release();
+    }
+};
+
+initDB();
 
 module.exports = db;
