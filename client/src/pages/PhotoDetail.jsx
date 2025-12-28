@@ -43,7 +43,7 @@ const PhotoDetail = ({ currentUser }) => {
             const formData = new FormData();
             formData.append('photo', selectedFile);
 
-            const response = await fetch(`http://localhost:5000/api/photos?${queryParams}`, {
+            const response = await fetch(`/api/photos?${queryParams}`, {
                 method: 'POST',
                 body: formData,
             });

@@ -25,17 +25,22 @@ const Guestbook = ({ deceasedName, currentUser }) => {
         }
     }, [view]);
 
-    const fetchPosts = () => {
-        fetch(`http://localhost:5000/api/guestbook?deceasedName=${encodeURIComponent(deceasedName)}`)
-            .then(res => res.json())
-            .then(data => setPosts(data.posts || []))
-            .catch(err => console.error('Error fetching guestbook:', err));
+    const fetchPosts = async () => {
+        try {
+            const response = await fetch(`/api/guestbook?deceasedName=${encodeURIComponent(deceasedName)}`);
+            if (response.ok) {
+                const data = await response.json();
+                setPosts(data.posts || []);
+            }
+        } catch (error) {
+            console.error('Failed to fetch guestbook posts:', error);
+        }
     };
 
     const handleWriteSubmit = async (e) => {
         e.preventDefault();
         try {
-            const response = await fetch('http://localhost:5000/api/guestbook', {
+            const response = await fetch('/api/guestbook', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -67,7 +72,7 @@ const Guestbook = ({ deceasedName, currentUser }) => {
         }
 
         try {
-            const response = await fetch(`http://localhost:5000/api/guestbook/${selectedPost.id}`, {
+            const response = await fetch(`/api/guestbook/${selectedPost.id}`, {
                 method: 'DELETE'
             });
 

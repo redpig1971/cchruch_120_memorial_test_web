@@ -63,7 +63,7 @@ const DeceasedLocation = () => {
                 }}>
                     {deceased.image_url ? (
                         <img
-                            src={`http://localhost:5000${deceased.image_url}`}
+                            src={deceased.image_url}
                             alt="위치 지도"
                             style={{
                                 maxWidth: '100%',

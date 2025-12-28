@@ -32,7 +32,7 @@ const Home = ({ currentUser, onLogout, onUpdateUser }) => {
         if (!name) return;
 
         try {
-            const response = await fetch('http://localhost:5000/api/users/deceased', {
+            const response = await fetch('/api/users/deceased', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId: currentUser.id, deceasedName: name })
@@ -54,7 +54,7 @@ const Home = ({ currentUser, onLogout, onUpdateUser }) => {
 
     const handleDeceasedClick = async (name) => {
         try {
-            const response = await fetch(`http://localhost:5000/api/deceased/${name}`);
+            const response = await fetch(`/api/deceased/${name}`);
             if (response.ok) {
                 const data = await response.json();
                 navigate('/deceased-location', { state: { deceased: data.deceased } });
