@@ -94,15 +94,16 @@ const initDB = async () => {
         }
 
         // Photos Table
-            CREATE TABLE IF NOT EXISTS photos(
-            id SERIAL PRIMARY KEY,
-            user_id INTEGER,
-            filename VARCHAR(255),
-            slot_number INTEGER,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY(user_id) REFERENCES users(id),
-            UNIQUE(user_id, slot_number)
-        );
+        await client.query(`
+            CREATE TABLE IF NOT EXISTS photos (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER,
+                filename VARCHAR(255),
+                slot_number INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(user_id) REFERENCES users(id),
+                UNIQUE(user_id, slot_number)
+            );
         `);
 
         // Schema Migration for Binary Storage (Safe to run multiple times)
