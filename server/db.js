@@ -124,10 +124,31 @@ const initDB = async () => {
         await client.query(`ALTER TABLE deceased_list ADD COLUMN IF NOT EXISTS mime_type VARCHAR(50);`);
 
         // Seed Deceased List if empty
+        const fs = require('fs');
+        const path = require('path');
+
+        let mapData = null;
+        try {
+            const mapPath = path.join(__dirname, 'seeds', 'ha_temp.png');
+            if (fs.existsSync(mapPath)) {
+                mapData = fs.readFileSync(mapPath);
+            } else {
+                console.warn("Map seed file not found:", mapPath);
+            }
+        } catch (err) {
+            console.error("Error reading map seed file:", err);
+        }
+
         const deceasedRes = await client.query("SELECT * FROM deceased_list WHERE name = $1", ['고인1']);
         if (deceasedRes.rows.length === 0) {
-            await client.query("INSERT INTO deceased_list (name, location) VALUES ($1, $2)", ['고인1', '천국 1열 1번']);
-            console.log('Seeded deceased_list with 고인1');
+            await client.query("INSERT INTO deceased_list (name, location, image_data, mime_type) VALUES ($1, $2, $3, $4)",
+                ['고인1', 'D-9', mapData, 'image/png']);
+            console.log('Seeded deceased_list with 고인1 (D-9)');
+        } else {
+            // Update existing entry with new location and image
+            await client.query("UPDATE deceased_list SET location = $1, image_data = $2, mime_type = $3 WHERE name = $4",
+                ['D-9', mapData, 'image/png', '고인1']);
+            console.log('Updated deceased_list for 고인1 (D-9)');
         }
 
         // Guestbook Table
