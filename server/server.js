@@ -216,3 +216,12 @@ app.delete('/api/guestbook/:id', (req, res) => {
     res.json({ message: 'Post deleted successfully' });
   });
 });
+
+// --- Render Deployment Configuration ---
+// Serve static frontend files
+app.use(express.static(path.join(__dirname, '../client/dist')));
+
+// Handle SPA routing: return index.html for any unknown route
+app.use((req, res) => {
+  res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+});
