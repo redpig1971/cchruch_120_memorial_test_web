@@ -94,38 +94,41 @@ const initDB = async () => {
         }
 
         // Photos Table
-        await client.query(`
-            CREATE TABLE IF NOT EXISTS photos (
-                id SERIAL PRIMARY KEY,
-                user_id INTEGER,
-                filename VARCHAR(255),
-                slot_number INTEGER,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY(user_id) REFERENCES users(id),
-                UNIQUE(user_id, slot_number)
-            );
+            CREATE TABLE IF NOT EXISTS photos(
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER,
+            filename VARCHAR(255),
+            slot_number INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(user_id) REFERENCES users(id),
+            UNIQUE(user_id, slot_number)
+        );
         `);
+
+        // Schema Migration for Binary Storage (Safe to run multiple times)
+        await client.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS image_data BYTEA; `);
+        await client.query(`ALTER TABLE photos ADD COLUMN IF NOT EXISTS mime_type VARCHAR(50); `);
 
         // Deceased List Table
         await client.query(`
             CREATE TABLE IF NOT EXISTS deceased_list(
-                id SERIAL PRIMARY KEY,
-                name VARCHAR(255) UNIQUE,
-                location VARCHAR(255),
-                image_url VARCHAR(255)
-            );
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(255) UNIQUE,
+            location VARCHAR(255),
+            image_url VARCHAR(255)
+        );
         `);
 
         // Guestbook Table
         await client.query(`
-             CREATE TABLE IF NOT EXISTS guestbook (
-                id SERIAL PRIMARY KEY,
-                deceased_name VARCHAR(255),
-                author VARCHAR(255),
-                title VARCHAR(255),
-                content TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
+             CREATE TABLE IF NOT EXISTS guestbook(
+            id SERIAL PRIMARY KEY,
+            deceased_name VARCHAR(255),
+            author VARCHAR(255),
+            title VARCHAR(255),
+            content TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
         `);
 
         await client.query('COMMIT');

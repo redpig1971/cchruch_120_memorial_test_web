@@ -83,7 +83,7 @@ const PhotoDetail = ({ currentUser }) => {
                         </div>
                     ) : (
                         <img
-                            src={`http://localhost:5000/uploads/${photo.filename}`}
+                            src={photo.url || `/uploads/${photo.filename}`}
                             alt="상세 이미지"
                             className="detail-image"
                         />

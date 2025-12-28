@@ -120,16 +120,7 @@ const path = require('path');
 // Serve uploaded files statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/');
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
+const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 // Upload Photo Endpoint
@@ -158,8 +149,8 @@ app.post('/api/photos', upload.single('photo'), (req, res) => {
       if (err) console.error("Error clearing slot:", err);
     });
 
-    const insert = 'INSERT INTO photos (user_id, filename, slot_number) VALUES (?, ?, ?) RETURNING id';
-    db.run(insert, [userId, filename, slotNumInt], function (err) {
+    const insert = 'INSERT INTO photos (user_id, filename, slot_number, image_data, mime_type) VALUES (?, ?, ?, ?, ?) RETURNING id';
+    db.run(insert, [userId, filename, slotNumInt, req.file.buffer, req.file.mimetype], function (err) {
       if (err) {
         console.error(err.message);
         return res.status(500).json({ message: 'Failed to save photo info' });
@@ -169,14 +160,33 @@ app.post('/api/photos', upload.single('photo'), (req, res) => {
   });
 });
 
+// Serve Image from DB Endpoint
+app.get('/api/images/:id', (req, res) => {
+  const { id } = req.params;
+  const query = "SELECT image_data, mime_type FROM photos WHERE id = ?";
+  db.get(query, [id], (err, row) => {
+    if (err) {
+      console.error(err.message);
+      return res.status(500).send('Internal Server Error');
+    }
+    if (!row || !row.image_data) {
+      return res.status(404).send('Image not found');
+    }
+
+    res.setHeader('Content-Type', row.mime_type || 'image/jpeg');
+    res.send(row.image_data);
+  });
+});
+
 // Get Photos Endpoint
 app.get('/api/photos', (req, res) => {
   const { userId } = req.query;
-  let query = "SELECT * FROM photos ORDER BY created_at DESC";
+  // Exclude image_data to reduce payload size
+  let query = "SELECT id, user_id, filename, slot_number, created_at FROM photos ORDER BY created_at DESC";
   let params = [];
 
   if (userId) {
-    query = "SELECT * FROM photos WHERE user_id = ? ORDER BY slot_number ASC";
+    query = "SELECT id, user_id, filename, slot_number, created_at FROM photos WHERE user_id = ? ORDER BY slot_number ASC";
     params = [userId];
   }
 
@@ -185,7 +195,14 @@ app.get('/api/photos', (req, res) => {
       console.error(err.message);
       return res.status(500).json({ message: 'Internal server error' });
     }
-    res.json({ photos: rows });
+    // Add 'url' property to match frontend expectations (using the new serving endpoint)
+    const photosWithUrl = rows.map(row => ({
+      ...row,
+      url: `/api/images/${row.id}`
+      // Note: Frontend currently uses 'url' or '/uploads/filename'. 
+      // We will need to update frontend to use this 'url' property instead of building path manually.
+    }));
+    res.json({ photos: photosWithUrl });
   });
 });
 

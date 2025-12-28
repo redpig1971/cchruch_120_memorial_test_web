@@ -9,7 +9,7 @@ const Home = ({ currentUser, onLogout, onUpdateUser }) => {
 
     const fetchPhotos = () => {
         if (!currentUser) return;
-        fetch(`http://localhost:5000/api/photos?userId=${currentUser.id}`)
+        fetch(`/api/photos?userId=${currentUser.id}`)
             .then(res => res.json())
             .then(data => setPhotos(data.photos || []))
             .catch(err => console.error('Error fetching photos:', err));
@@ -17,7 +17,7 @@ const Home = ({ currentUser, onLogout, onUpdateUser }) => {
 
     useEffect(() => {
         fetchPhotos();
-        fetch('http://localhost:5000/api/health')
+        fetch('/api/health')
             .then(res => res.json())
             .then(data => setServerStatus(data.message))
             .catch(err => setServerStatus('서버 연결 오류'));
@@ -157,7 +157,7 @@ const Home = ({ currentUser, onLogout, onUpdateUser }) => {
                                     <img src="/cchurch_logo.png" alt="기본 로고" className="default-logo-ticker" />
                                 ) : (
                                     <img
-                                        src={`http://localhost:5000/uploads/${item.filename}`}
+                                        src={item.url || `/uploads/${item.filename}`}
                                         alt="사용자 사진"
                                     />
                                 )}
