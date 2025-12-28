@@ -77,14 +77,50 @@ app.post('/api/users/deceased', (req, res) => {
   });
 });
 
+// Serve Deceased Map Image from DB
+app.get('/api/deceased-images/:id', (req, res) => {
+  const { id } = req.params;
+  const query = "SELECT image_data, mime_type FROM deceased_list WHERE id = ?";
+  db.get(query, [id], (err, row) => {
+    if (err) {
+      console.error(err.message);
+      return res.status(500).send('Database error');
+    }
+    if (!row || !row.image_data) {
+      return res.status(404).send('Image not found');
+    }
+
+    res.setHeader('Content-Type', row.mime_type || 'image/jpeg');
+    res.send(row.image_data);
+  });
+});
+
 // Get Deceased Location Endpoint
 app.get('/api/deceased/:name', (req, res) => {
   const { name } = req.params;
-  const query = "SELECT * FROM deceased_list WHERE name = ?";
+  // Exclude image_data
+  const query = "SELECT id, name, location FROM deceased_list WHERE name = ?";
   db.get(query, [name], (err, row) => {
     if (err) return res.status(500).json({ message: 'Database error' });
     if (!row) return res.status(404).json({ message: 'Deceased not found' });
-    res.json({ deceased: row });
+
+    // Construct response
+    const deceasedData = {
+      ...row,
+      // Since we don't know if image exists without querying, we can just provide the URL
+      // OR we could check if image_data is not null. 
+      // For simplicity, let's provide URL and if it 404s, client shows placeholder.
+      // Actually, let's query 'CASE WHEN image_data IS NOT NULL THEN 1 ELSE 0 END as has_image'
+      // But to keep it simple:
+      url: `/api/deceased-images/${row.id}`
+    };
+
+    // Legacy support: if image_url was used, maybe we should unset it or keep it?
+    // Client prefers 'url' (which we will add implies binary) or 'image_url' (legacy).
+    // Let's set image_url to this new URL too for compatibility if client uses that.
+    deceasedData.image_url = deceasedData.url;
+
+    res.json({ deceased: deceasedData });
   });
 });
 

@@ -120,6 +120,16 @@ const initDB = async () => {
         );
         `);
 
+        await client.query(`ALTER TABLE deceased_list ADD COLUMN IF NOT EXISTS image_data BYTEA;`);
+        await client.query(`ALTER TABLE deceased_list ADD COLUMN IF NOT EXISTS mime_type VARCHAR(50);`);
+
+        // Seed Deceased List if empty
+        const deceasedRes = await client.query("SELECT * FROM deceased_list WHERE name = $1", ['고인1']);
+        if (deceasedRes.rows.length === 0) {
+            await client.query("INSERT INTO deceased_list (name, location) VALUES ($1, $2)", ['고인1', '천국 1열 1번']);
+            console.log('Seeded deceased_list with 고인1');
+        }
+
         // Guestbook Table
         await client.query(`
              CREATE TABLE IF NOT EXISTS guestbook(

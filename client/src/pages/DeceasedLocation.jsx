@@ -62,15 +62,19 @@ const DeceasedLocation = () => {
                     padding: '1rem'
                 }}>
                     {deceased.image_url ? (
-                        <img
-                            src={deceased.image_url}
-                            alt="위치 지도"
-                            style={{
-                                maxWidth: '100%',
-                                maxHeight: '60vh',
-                                objectFit: 'contain'
-                            }}
-                        />
+                        <>
+                            <img
+                                src={deceased.image_url}
+                                alt="위치 지도"
+                                onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }}
+                                style={{
+                                    maxWidth: '100%',
+                                    maxHeight: '60vh',
+                                    objectFit: 'contain'
+                                }}
+                            />
+                            <p style={{ display: 'none', padding: '2rem', color: '#94a3b8' }}>지도를 불러올 수 없습니다.</p>
+                        </>
                     ) : (
                         <p style={{ padding: '2rem', color: '#94a3b8' }}>지도 이미지가 없습니다.</p>
                     )}
